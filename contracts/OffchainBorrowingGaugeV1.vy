@@ -1,6 +1,6 @@
 # @version 0.2.15
 """
-@title Borrow Gauge v1
+@title Offchain Borrowing Gauge v1
 @author Hundred Finance (based on Liquidity Gauge v5)
 @license MIT
 """
@@ -30,13 +30,9 @@ interface VotingEscrow:
 interface VotingEscrowBoost:
     def adjusted_balance_of(_account: address) -> uint256: view
 
-interface ERC20Extended:
-    def symbol() -> String[26]: view
-    def decimals() -> uint256: view
-
 interface HController:
-    def totalOffchainBorrows(htoken: address) -> uint256: view
-    def accountOffchainBorrows(htoken: address, user: address) -> uint256: view
+    def totalOffchainBorrows(token: address) -> uint256: view
+    def accountOffchainBorrows(token: address, user: address) -> uint256: view
 
 
 event UpdateLiquidityLimit:
@@ -63,8 +59,8 @@ voting_escrow: public(address)
 controller: public(address)
 veboost_proxy: public(address)
 
-htoken: public(address)
 hcontroller: public(address)
+measured_tokens: public(address[32])
 
 name: public(String[64])
 symbol: public(String[32])
@@ -101,7 +97,9 @@ is_killed: public(bool)
 
 @external
 def __init__(
-        _htoken: address,
+        _name: String[64],
+        _symbol: String[32],
+        _decimals: uint256,
         _hcontroller: address,
         _minter: address,
         _admin: address,
@@ -110,21 +108,21 @@ def __init__(
     ):
     """
     @notice Contract constructor
-    @param _htoken hToken contract address
+    @param _name Gauge name
+    @param _symbol Gauge symbol
+    @param _decimals Gauge decimals
     @param _hcontroller HController contract address
     @param _minter Minter contract address
     @param _admin Admin who can kill the gauge
     @param _veboost_proxy veBoost proxy contract
     """
 
-    symbol: String[26] = ERC20Extended(_htoken).symbol()
-    self.name = concat(symbol, " Borrowing Gauge")
-    self.symbol = concat(symbol, "-gauge")
-    self.decimals = ERC20Extended(_htoken).decimals()
+    self.name = _name
+    self.symbol = _symbol
+    self.decimals = _decimals
 
     controller: address = Minter(_minter).controller()
 
-    self.htoken = _htoken
     self.hcontroller = _hcontroller
 
     self.minter = _minter
@@ -140,13 +138,21 @@ def __init__(
 @view
 @internal
 def total_supply() -> uint256:
-    return HController(self.hcontroller).totalOffchainBorrows(self.htoken)
+    total: uint256 = 0
+    for token in self.measured_tokens:
+        if token == ZERO_ADDRESS: break
+        total += HController(self.hcontroller).totalOffchainBorrows(token)
+    return total
 
 
 @view
 @internal
 def balance_of(user: address) -> uint256:
-    return HController(self.hcontroller).accountOffchainBorrows(self.htoken, user)
+    total: uint256 = 0
+    for token in self.measured_tokens:
+        if token == ZERO_ADDRESS: break
+        total += HController(self.hcontroller).accountOffchainBorrows(token, user)
+    return total
 
 
 @view
@@ -346,3 +352,25 @@ def accept_transfer_ownership():
 
     self.admin = _admin
     log ApplyOwnership(_admin)
+
+
+@external
+def add_measured_token(new_token: address):
+    """
+    @notice Add a new token to be measured when rewarding offchain borrowing.
+    """
+    assert msg.sender == self.admin # dev: admin only
+
+    # Check that the token's existing offchain borrows are at 0
+    assert HController(self.hcontroller).totalOffchainBorrows(new_token) == 0
+    
+    # Track the index where we want to insert the new token
+    new_token_index: uint256 = 0
+    for token in self.measured_tokens:
+        # If we reach a zero address, we've found our index
+        if token == ZERO_ADDRESS: break
+        # Check that we're not duplicating an existing token
+        assert token != new_token
+        new_token_index += 1
+    
+    self.measured_tokens[new_token_index] = new_token
