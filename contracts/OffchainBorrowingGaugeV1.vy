@@ -31,8 +31,8 @@ interface VotingEscrowBoost:
     def adjusted_balance_of(_account: address) -> uint256: view
 
 interface HController:
-    def totalOffchainBorrows(token: address) -> uint256: view
-    def accountOffchainBorrows(token: address, user: address) -> uint256: view
+    def totalOffchainBorrows(chainId: uint256, token: address) -> uint256: view
+    def accountOffchainBorrows(chainId: uint256, token: address, user: address) -> uint256: view
 
 
 event UpdateLiquidityLimit:
@@ -49,9 +49,15 @@ event ApplyOwnership:
     admin: address
 
 
+struct MeasuredToken:
+    chain_id: uint256
+    contract_address: address
+
+
 TOKENLESS_PRODUCTION: constant(uint256) = 40
 WEEK: constant(uint256) = 604800
 MAX_TOKENS: constant(uint256) = 10
+MAX_MEASURED_TOKENS: constant(int128) = 32
 
 minter: public(address)
 reward_policy_maker: public(address)
@@ -60,7 +66,7 @@ controller: public(address)
 veboost_proxy: public(address)
 
 hcontroller: public(address)
-measured_tokens: public(address[32])
+measured_tokens: public(MeasuredToken[MAX_MEASURED_TOKENS])
 
 name: public(String[64])
 symbol: public(String[32])
@@ -139,9 +145,10 @@ def __init__(
 @internal
 def total_supply() -> uint256:
     total: uint256 = 0
-    for token in self.measured_tokens:
-        if token == ZERO_ADDRESS: break
-        total += HController(self.hcontroller).totalOffchainBorrows(token)
+    for i in range(MAX_MEASURED_TOKENS):
+        token: MeasuredToken = self.measured_tokens[i]
+        if token.contract_address == ZERO_ADDRESS: break
+        total += HController(self.hcontroller).totalOffchainBorrows(token.chain_id, token.contract_address)
     return total
 
 
@@ -149,9 +156,10 @@ def total_supply() -> uint256:
 @internal
 def balance_of(user: address) -> uint256:
     total: uint256 = 0
-    for token in self.measured_tokens:
-        if token == ZERO_ADDRESS: break
-        total += HController(self.hcontroller).accountOffchainBorrows(token, user)
+    for i in range(MAX_MEASURED_TOKENS):
+        token: MeasuredToken = self.measured_tokens[i]
+        if token.contract_address == ZERO_ADDRESS: break
+        total += HController(self.hcontroller).accountOffchainBorrows(token.chain_id, token.contract_address, user)
     return total
 
 
@@ -355,22 +363,25 @@ def accept_transfer_ownership():
 
 
 @external
-def add_measured_token(new_token: address):
+def add_measured_token(new_chain_id: uint256, new_contract_address: address):
     """
     @notice Add a new token to be measured when rewarding offchain borrowing.
     """
     assert msg.sender == self.admin # dev: admin only
 
-    # Check that the token's existing offchain borrows are at 0
-    assert HController(self.hcontroller).totalOffchainBorrows(new_token) == 0
+    # Check that the token has not been borrowed yet
+    assert HController(self.hcontroller).totalOffchainBorrows(new_chain_id, new_contract_address) == 0
     
     # Track the index where we want to insert the new token
     new_token_index: uint256 = 0
-    for token in self.measured_tokens:
+    for i in range(MAX_MEASURED_TOKENS):
+        token: MeasuredToken = self.measured_tokens[i]
         # If we reach a zero address, we've found our index
-        if token == ZERO_ADDRESS: break
+        if token.contract_address == ZERO_ADDRESS: break
         # Check that we're not duplicating an existing token
-        assert token != new_token
-        new_token_index += 1
+        assert token.chain_id != new_chain_id 
+        assert token.contract_address != new_contract_address
+        new_token_index = i + 1
     
-    self.measured_tokens[new_token_index] = new_token
+    self.measured_tokens[new_token_index].chain_id = new_chain_id
+    self.measured_tokens[new_token_index].contract_address = new_contract_address
