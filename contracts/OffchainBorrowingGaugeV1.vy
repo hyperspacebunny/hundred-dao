@@ -290,7 +290,7 @@ def user_checkpoint(addr: address) -> bool:
     @param addr User address
     @return bool success
     """
-    assert (msg.sender == addr) or (msg.sender == self.minter)  # dev: unauthorized
+    assert (msg.sender == addr) or (msg.sender == self.minter) or (msg.sender == self.hcontroller)  # dev: unauthorized
     self._checkpoint(addr)
     self._update_liquidity_limit(addr, self.balance_of(addr), self.total_supply())
     return True
@@ -367,10 +367,7 @@ def add_measured_token(new_chain_id: uint256, new_contract_address: address):
     """
     @notice Add a new token to be measured when rewarding offchain borrowing.
     """
-    assert msg.sender == self.admin # dev: admin only
-
-    # Check that the token has not been borrowed yet
-    assert HController(self.hcontroller).totalOffchainBorrows(new_chain_id, new_contract_address) == 0
+    assert msg.sender == self.hcontroller # dev: hcontroller only
     
     # Track the index where we want to insert the new token
     new_token_index: uint256 = 0
