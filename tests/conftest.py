@@ -200,12 +200,12 @@ def gauge_v5(LiquidityGaugeV5, alice, mock_lp_token, token, minter, reward_polic
     yield LiquidityGaugeV5.deploy(mock_lp_token, minter, alice, reward_policy_maker, veboost_proxy, {"from": alice})
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def mock_hcontroller(HControllerMock, alice, mock_lp_token, token, minter, reward_policy_maker, veboost_proxy):
     yield HControllerMock.deploy({"from": alice})
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def ocb_gauge_v1(OffchainBorrowingGaugeV1, mock_hcontroller, alice, minter, reward_policy_maker, veboost_proxy):
     yield OffchainBorrowingGaugeV1.deploy("Borrowing Gauge", "bGauge", 18, mock_hcontroller, minter, alice, reward_policy_maker, veboost_proxy, {"from": alice})
 

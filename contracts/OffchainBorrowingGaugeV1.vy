@@ -367,7 +367,7 @@ def add_measured_token(new_chain_id: uint256, new_contract_address: address):
     """
     @notice Add a new token to be measured when rewarding offchain borrowing.
     """
-    assert msg.sender == self.hcontroller # dev: hcontroller only
+    assert msg.sender == self.hcontroller # dev: unauthorized
     
     # Track the index where we want to insert the new token
     new_token_index: uint256 = 0
@@ -376,8 +376,7 @@ def add_measured_token(new_chain_id: uint256, new_contract_address: address):
         # If we reach a zero address, we've found our index
         if token.contract_address == ZERO_ADDRESS: break
         # Check that we're not duplicating an existing token
-        assert token.chain_id != new_chain_id 
-        assert token.contract_address != new_contract_address
+        assert (token.chain_id != new_chain_id) or (token.contract_address != new_contract_address) # dev: token already measured
         new_token_index = i + 1
     
     self.measured_tokens[new_token_index].chain_id = new_chain_id
