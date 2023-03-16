@@ -9,6 +9,7 @@ reports/
 /scripts/deployment_keys.py
 node_modules
 .env
+.envrc
 artifacts
 cache
 typechain
