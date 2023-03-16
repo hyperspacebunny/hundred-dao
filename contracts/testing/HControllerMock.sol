@@ -85,9 +85,8 @@ contract HControllerMock {
             }
         }
 
-        if (positionIndex < len) {
-            accountOutboundBorrows[borrower][positionIndex].borrowBalance -= repayAmount;
-        }
+        require(positionIndex < len);
+        accountOutboundBorrows[borrower][positionIndex].borrowBalance -= repayAmount;
 
         totalOutboundBorrows[borrowChainId][cToken] -= repayAmount;
 
