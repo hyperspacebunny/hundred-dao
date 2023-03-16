@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 
 
 interface OffchainBorrowingGauge {
-    function add_measured_token(uint256 chain_id, address contract_address) external;
     function user_checkpoint(address borrower) external;
 }
 
