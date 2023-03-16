@@ -31,8 +31,8 @@ interface VotingEscrowBoost:
     def adjusted_balance_of(_account: address) -> uint256: view
 
 interface HController:
-    def totalOffchainBorrows(chainId: uint256, token: address) -> uint256: view
-    def accountOffchainBorrows(chainId: uint256, token: address, user: address) -> uint256: view
+    def totalOffchainBorrowsForGauge() -> uint256: view
+    def accountOffchainBorrowsForGauge(user: address) -> uint256: view
 
 
 event UpdateLiquidityLimit:
@@ -49,11 +49,6 @@ event ApplyOwnership:
     admin: address
 
 
-struct MeasuredToken:
-    chain_id: uint256
-    contract_address: address
-
-
 TOKENLESS_PRODUCTION: constant(uint256) = 40
 WEEK: constant(uint256) = 604800
 MAX_TOKENS: constant(uint256) = 10
@@ -66,7 +61,6 @@ controller: public(address)
 veboost_proxy: public(address)
 
 hcontroller: public(address)
-measured_tokens: public(MeasuredToken[MAX_MEASURED_TOKENS])
 
 name: public(String[64])
 symbol: public(String[32])
@@ -144,23 +138,13 @@ def __init__(
 @view
 @internal
 def total_supply() -> uint256:
-    total: uint256 = 0
-    for i in range(MAX_MEASURED_TOKENS):
-        token: MeasuredToken = self.measured_tokens[i]
-        if token.contract_address == ZERO_ADDRESS: break
-        total += HController(self.hcontroller).totalOffchainBorrows(token.chain_id, token.contract_address)
-    return total
+    return HController(self.hcontroller).totalOffchainBorrowsForGauge()
 
 
 @view
 @internal
 def balance_of(user: address) -> uint256:
-    total: uint256 = 0
-    for i in range(MAX_MEASURED_TOKENS):
-        token: MeasuredToken = self.measured_tokens[i]
-        if token.contract_address == ZERO_ADDRESS: break
-        total += HController(self.hcontroller).accountOffchainBorrows(token.chain_id, token.contract_address, user)
-    return total
+    return HController(self.hcontroller).accountOffchainBorrowsForGauge(user)
 
 
 @view
@@ -360,24 +344,3 @@ def accept_transfer_ownership():
 
     self.admin = _admin
     log ApplyOwnership(_admin)
-
-
-@external
-def add_measured_token(new_chain_id: uint256, new_contract_address: address):
-    """
-    @notice Add a new token to be measured when rewarding offchain borrowing.
-    """
-    assert msg.sender == self.hcontroller # dev: unauthorized
-    
-    # Track the index where we want to insert the new token
-    new_token_index: uint256 = 0
-    for i in range(MAX_MEASURED_TOKENS):
-        token: MeasuredToken = self.measured_tokens[i]
-        # If we reach a zero address, we've found our index
-        if token.contract_address == ZERO_ADDRESS: break
-        # Check that we're not duplicating an existing token
-        assert (token.chain_id != new_chain_id) or (token.contract_address != new_contract_address) # dev: token already measured
-        new_token_index = i + 1
-    
-    self.measured_tokens[new_token_index].chain_id = new_chain_id
-    self.measured_tokens[new_token_index].contract_address = new_contract_address

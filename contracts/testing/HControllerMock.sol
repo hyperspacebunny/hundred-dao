@@ -21,24 +21,14 @@ contract HControllerMock {
 
     mapping(address => OutboundBorrow[]) public accountOutboundBorrows;
     mapping(uint => mapping(address => uint256)) public totalOutboundBorrows;
+    mapping(address => uint) public totalOutboundBorrowsPerGauge;
     mapping(uint => mapping(address => address)) public borrowGauges;
 
     function registerBorrowGauge(uint borrowChainId, address cToken, address gauge) public {
         require(totalOutboundBorrows[borrowChainId][cToken] == 0);
+        require(borrowGauges[borrowChainId][cToken] == address(0));
 
         borrowGauges[borrowChainId][cToken] = gauge;
-        OffchainBorrowingGauge(gauge).add_measured_token(borrowChainId, cToken);
-    }
-
-    function _checkpointGauge(
-        uint borrowChainId,
-        address borrower,
-        address cToken
-    ) internal {
-        address gauge = borrowGauges[borrowChainId][cToken];
-        if (gauge == address(0)) return;
-
-        OffchainBorrowingGauge(gauge).user_checkpoint(borrower);
     }
 
     function increaseBorrowPosition(
@@ -71,7 +61,12 @@ contract HControllerMock {
         }
 
         totalOutboundBorrows[borrowChainId][cToken] += borrowAmount;
-        _checkpointGauge(borrowChainId, borrower, cToken);
+
+        address borrowGaugeForToken = borrowGauges[borrowChainId][cToken];
+        if (borrowGaugeForToken != address(0)) {
+            totalOutboundBorrowsPerGauge[borrowGaugeForToken] += borrowAmount;
+            OffchainBorrowingGauge(borrowGaugeForToken).user_checkpoint(borrower);
+        }
     }
 
     function reduceBorrowPosition(
@@ -96,7 +91,12 @@ contract HControllerMock {
         }
 
         totalOutboundBorrows[borrowChainId][cToken] -= repayAmount;
-        _checkpointGauge(borrowChainId, borrower, cToken);
+
+        address borrowGaugeForToken = borrowGauges[borrowChainId][cToken];
+        if (borrowGaugeForToken != address(0)) {
+            totalOutboundBorrowsPerGauge[borrowGaugeForToken] -= repayAmount;
+            OffchainBorrowingGauge(borrowGaugeForToken).user_checkpoint(borrower);
+        }
     }
 
     function resetBorrowPosition(
@@ -121,17 +121,17 @@ contract HControllerMock {
         }
     }
 
-    function accountOffchainBorrows(uint256 borrowChainId, address cToken, address borrower) public view returns (uint256 total) {
+    function accountOffchainBorrowsForGauge(address borrower) public view returns (uint256 total) {
         OutboundBorrow[] memory borrowPositions = accountOutboundBorrows[borrower];
         for (uint i = 0; i < borrowPositions.length; i++) {
-            if (borrowPositions[i].cToken == cToken && borrowPositions[i].chainId == borrowChainId) {
+            address borrowGaugeForToken = borrowGauges[borrowPositions[i].chainId][borrowPositions[i].cToken];
+            if (borrowGaugeForToken == msg.sender) {
                 total += borrowPositions[i].borrowBalance;
-                break;
             }
         }
     }
 
-    function totalOffchainBorrows(uint256 borrowChainId, address cToken) public view returns (uint256) {
-        return totalOutboundBorrows[borrowChainId][cToken];
+    function totalOffchainBorrowsForGauge() public view returns (uint256) {
+        return totalOutboundBorrowsPerGauge[msg.sender];
     }
 }
