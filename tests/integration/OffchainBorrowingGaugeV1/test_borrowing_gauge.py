@@ -12,7 +12,7 @@ def test_gauge_integral(accounts, chain, token, token2, reward_policy_maker, ocb
     alice, bob = accounts[:2]
 
     # Register borrowing gauge with the comptroller
-    mock_hcontroller.registerBorrowGauge(BORROW_CHAIN_ID, token2, ocb_gauge_v1)
+    mock_hcontroller._registerBorrowGauge(BORROW_CHAIN_ID, token2, ocb_gauge_v1)
 
     # Wire up Gauge to the controller to have proper rates and stuff
     gauge_controller.add_type(b"Borrowing", {"from": alice})
@@ -118,7 +118,7 @@ def test_mining_with_votelock(
     chain.sleep(2 * WEEK + 5)
 
     # Register borrowing gauge with the comptroller
-    mock_hcontroller.registerBorrowGauge(BORROW_CHAIN_ID, token2, ocb_gauge_v1)
+    mock_hcontroller._registerBorrowGauge(BORROW_CHAIN_ID, token2, ocb_gauge_v1)
 
     # Wire up Gauge to the controller to have proper rates and stuff
     gauge_controller.add_type(b"Borrowing", {"from": alice})

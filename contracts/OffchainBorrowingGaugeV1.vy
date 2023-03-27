@@ -31,8 +31,8 @@ interface VotingEscrowBoost:
     def adjusted_balance_of(_account: address) -> uint256: view
 
 interface HController:
-    def totalOffchainBorrowsForGauge() -> uint256: view
-    def accountOffchainBorrowsForGauge(user: address) -> uint256: view
+    def totalOutboundBorrowsForGauge(gauge: address) -> uint256: view
+    def accountTotalOutboundBorrowsForGauge(gauge: address, user: address) -> uint256: view
 
 
 event UpdateLiquidityLimit:
@@ -138,13 +138,13 @@ def __init__(
 @view
 @internal
 def total_supply() -> uint256:
-    return HController(self.hcontroller).totalOffchainBorrowsForGauge()
+    return HController(self.hcontroller).totalOutboundBorrowsForGauge(self)
 
 
 @view
 @internal
 def balance_of(user: address) -> uint256:
-    return HController(self.hcontroller).accountOffchainBorrowsForGauge(user)
+    return HController(self.hcontroller).accountTotalOutboundBorrowsForGauge(self, user)
 
 
 @view

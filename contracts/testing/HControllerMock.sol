@@ -20,10 +20,10 @@ contract HControllerMock {
 
     mapping(address => OutboundBorrow[]) public accountOutboundBorrows;
     mapping(uint => mapping(address => uint256)) public totalOutboundBorrows;
-    mapping(address => uint) public totalOutboundBorrowsPerGauge;
+    mapping(address => uint) public totalOutboundBorrowsForGauge;
     mapping(uint => mapping(address => address)) public borrowGauges;
 
-    function registerBorrowGauge(uint borrowChainId, address cToken, address gauge) public {
+    function _registerBorrowGauge(uint borrowChainId, address cToken, address gauge) public {
         require(totalOutboundBorrows[borrowChainId][cToken] == 0);
         require(borrowGauges[borrowChainId][cToken] == address(0));
 
@@ -63,7 +63,7 @@ contract HControllerMock {
 
         address borrowGaugeForToken = borrowGauges[borrowChainId][cToken];
         if (borrowGaugeForToken != address(0)) {
-            totalOutboundBorrowsPerGauge[borrowGaugeForToken] += borrowAmount;
+            totalOutboundBorrowsForGauge[borrowGaugeForToken] += borrowAmount;
             OffchainBorrowingGauge(borrowGaugeForToken).user_checkpoint(borrower);
         }
     }
@@ -92,7 +92,7 @@ contract HControllerMock {
 
         address borrowGaugeForToken = borrowGauges[borrowChainId][cToken];
         if (borrowGaugeForToken != address(0)) {
-            totalOutboundBorrowsPerGauge[borrowGaugeForToken] -= repayAmount;
+            totalOutboundBorrowsForGauge[borrowGaugeForToken] -= repayAmount;
             OffchainBorrowingGauge(borrowGaugeForToken).user_checkpoint(borrower);
         }
     }
@@ -119,17 +119,13 @@ contract HControllerMock {
         }
     }
 
-    function accountOffchainBorrowsForGauge(address borrower) public view returns (uint256 total) {
+    function accountTotalOutboundBorrowsForGauge(address gauge, address borrower) public view returns (uint256 total) {
         OutboundBorrow[] memory borrowPositions = accountOutboundBorrows[borrower];
         for (uint i = 0; i < borrowPositions.length; i++) {
             address borrowGaugeForToken = borrowGauges[borrowPositions[i].chainId][borrowPositions[i].cToken];
-            if (borrowGaugeForToken == msg.sender) {
+            if (borrowGaugeForToken == gauge) {
                 total += borrowPositions[i].borrowBalance;
             }
         }
-    }
-
-    function totalOffchainBorrowsForGauge() public view returns (uint256) {
-        return totalOutboundBorrowsPerGauge[msg.sender];
     }
 }

@@ -86,7 +86,7 @@ class StateMachine:
 
 
 def test_state_machine(state_machine, accounts, ocb_gauge_v1, token, mock_hcontroller, no_call_coverage):
-    mock_hcontroller.registerBorrowGauge(BORROW_CHAIN_ID, token, ocb_gauge_v1)
+    mock_hcontroller._registerBorrowGauge(BORROW_CHAIN_ID, token, ocb_gauge_v1)
 
     # because this is a simple state machine, we use more steps than normal
     settings = {"stateful_step_count": 25, "max_examples": 30}

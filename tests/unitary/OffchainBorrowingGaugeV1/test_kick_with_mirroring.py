@@ -15,7 +15,7 @@ def test_kick(chain, accounts, ocb_gauge_v1, mock_hcontroller, mirrored_voting_e
     token.approve(voting_escrow, MAX_UINT256, {"from": alice})
     voting_escrow.create_lock(5 * 10 ** 19, chain.time() + 4 * WEEK, {"from": alice})
 
-    mock_hcontroller.registerBorrowGauge(1, token, ocb_gauge_v1)
+    mock_hcontroller._registerBorrowGauge(1, token, ocb_gauge_v1)
     mock_hcontroller.increaseBorrowPosition(1, alice, token, 10 ** 21, {"from": alice})
 
     assert ocb_gauge_v1.working_balances(alice) == 10 ** 21
